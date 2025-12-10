@@ -1,45 +1,93 @@
-<!DOCTYPE html> <!-- For out interface we will use HTML and not react, react file is not used in profs project1 directory on github, yt video listed also used html and not react-->
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>Main Page - Client Registration</title>
-        <link rel="stylesheet" href="index.css"> <!--adding css via external css stylesheet-->
+        <title>Submit Service Request</title>
+        <link rel="stylesheet" href="index.css">
     </head>
     <body style="font-family: Arial;">
-        <h2>Register Your Account</h2>
-        <div> <!--The attribute action tells the webpage where the user input data should be sent, attribute method says how said data should be sent-->
-            <!--Our js file will go to this route-->
-        <a href="SignIn.html">Already Exsisting Account?</a>
-        <form action="http://localhost:5050/insert" method="POST">
-<!-- localhoast lit refers to 'this machine' as it's ran locally-->
+        <h2>Submit a Service Request</h2>
+        <div>
+            <a href="SignIn.html">Back to Sign In</a> | 
+            <a href="RequestStatus.html">View My Requests</a> |
+            <a href="ClientOrdersBills.html">My Orders & Bills</a>
             
-            <label>Service Address:</label> <!--Note that we use the value of the name attribute to send the user input data on the form to our database, IOW, name attribute needed to send data to database, NOT the id attribute (this is used for css or js), only works for form type elements nested in the <form> element/tag for http request to prorperly package and  -->
-            <input type="text" name="Service_Address" required>
+            <form id="serviceRequestForm">
+                <label>Client ID:</label>
+                <input type="text" name="ClientID" id="ClientID" required>
 
-            <label>Cleaning Type:</label>
-            <input type="text" name="Cleaning_Type" required>
+                <label>Service Address:</label>
+                <input type="text" name="Service_Address" id="Service_Address" required>
 
-            <label>Number of Rooms:</label>
-            <input type="number" name="Rooms" required>
- 
-            <label>Preference Date:</label>
-            <input type="number" name="Pref_Date" required>
-            
-            <label>Preference Time:</label>
-            <input type="number" name="Pref_Time" required>
+                <label>Cleaning Type:</label>
+                <select name="Cleaning_Type" id="Cleaning_Type" required>
+                    <option value="">Select Type</option>
+                    <option value="Basic">Basic Cleaning</option>
+                    <option value="Deep">Deep Cleaning</option>
+                    <option value="Move-in/out">Move-in/out Cleaning</option>
+                </select>
 
-            <label>Prefered Budget:</label>
-            <input type="number" name="Pref_Budget" required>
+                <label>Number of Rooms:</label>
+                <input type="number" name="Rooms" id="Rooms" required min="1">
+     
+                <label>Preferred Date:</label>
+                <input type="date" name="Pref_Date" id="Pref_Date" required>
+                
+                <label>Preferred Time:</label>
+                <input type="time" name="Pref_Time" id="Pref_Time" required>
 
-            <label>Optional Note:</label>
-            <input type="number" name="Optional_Note" required>
+                <label>Preferred Budget ($):</label>
+                <input type="number" name="Pref_Budget" id="Pref_Budget" required step="0.01" min="0">
 
-            <input type="hidden" name="LastSignInTime">
-            
-            <button>Finish</button> <!-- Button doesnt need any attributes but must be included/nested -->
-        </form>
+                <label>Optional Note:</label>
+                <textarea name="Optional_Note" id="Optional_Note" rows="4" placeholder="Any special requirements or notes..."></textarea>
+                
+                <button type="submit">Submit Request</button>
+            </form>
         </div>
-        <script src="Functionality.js"></script>
+        
+        <script>
+            document.getElementById('serviceRequestForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = {
+                    ClientID: document.getElementById('ClientID').value,
+                    Service_Address: document.getElementById('Service_Address').value,
+                    Cleaning_Type: document.getElementById('Cleaning_Type').value,
+                    Rooms: document.getElementById('Rooms').value,
+                    Pref_Date: document.getElementById('Pref_Date').value,
+                    Pref_Time: document.getElementById('Pref_Time').value,
+                    Pref_Budget: document.getElementById('Pref_Budget').value,
+                    Optional_Note: document.getElementById('Optional_Note').value
+                };
+                
+                try {
+                    const response = await fetch('http://localhost:5050/submit-service-request', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert('Service request submitted successfully! Request ID: ' + result.requestId);
+                        document.getElementById('serviceRequestForm').reset();
+                        
+                        // Optionally redirect to status page
+                        if (confirm('Would you like to view your request status?')) {
+                            window.location.href = 'RequestStatus.html';
+                        }
+                    } else {
+                        alert('Failed to submit service request. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error submitting service request. Please check your connection.');
+                }
+            });
+        </script>
     </body>
 </html>
 

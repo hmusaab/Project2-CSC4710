@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>My Orders & Bills - Client Portal</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        .card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .card-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .card-details {
+            margin: 5px 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-scheduled { background-color: #17a2b8; color: white; }
+        .status-in_progress { background-color: #007bff; color: white; }
+        .status-completed { background-color: #28a745; color: white; }
+        .status-cancelled { background-color: #dc3545; color: white; }
+        .status-pending { background-color: #ffc107; }
+        .status-paid { background-color: #28a745; color: white; }
+        .status-overdue { background-color: #dc3545; color: white; }
+        .bill-section {
+            background-color: #fff3cd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        .order-agreement {
+            background-color: #e7f3ff;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+        .pay-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .tab-buttons button {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .tab-buttons button.active {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body style="font-family: Arial;">
+    <h2>My Orders & Bills</h2>
+    
+    <div>
+        <label>Client ID:</label>
+        <input type="text" id="clientId" placeholder="Enter your Client ID">
+        <button onclick="loadClientData()">Load My Data</button>
+    </div>
+
+    <div class="tab-buttons" style="margin-top: 20px;">
+        <button id="ordersTab" class="active" onclick="showTab('orders')">My Orders</button>
+        <button id="billsTab" onclick="showTab('bills')">My Bills</button>
+    </div>
+
+    <div id="ordersContainer" style="display: block;"></div>
+    <div id="billsContainer" style="display: none;"></div>
+
+    <script>
+        let currentClientId = '';
+
+        function showTab(tab) {
+            if (tab === 'orders') {
+                document.getElementById('ordersContainer').style.display = 'block';
+                document.getElementById('billsContainer').style.display = 'none';
+                document.getElementById('ordersTab').classList.add('active');
+                document.getElementById('billsTab').classList.remove('active');
+            } else {
+                document.getElementById('ordersContainer').style.display = 'none';
+                document.getElementById('billsContainer').style.display = 'block';
+                document.getElementById('ordersTab').classList.remove('active');
+                document.getElementById('billsTab').classList.add('active');
+            }
+        }
+
+        async function loadClientData() {
+            currentClientId = document.getElementById('clientId').value;
+            
+            if (!currentClientId.trim()) {
+                alert('Please enter your Client ID');
+                return;
+            }
+
+            await loadClientOrders();
+            await loadClientBills();
+        }
+
+        async function loadClientOrders() {
+            try {
+                const response = await fetch(`http://localhost:5050/client-requests/${currentClientId}`);
+                const requests = await response.json();
+                
+                // Filter to show only accepted requests (which have orders)
+                const acceptedRequests = requests.filter(req => req.Request_Status === 'accepted');
+                
+                displayOrders(acceptedRequests);
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                alert('Failed to load orders');
+            }
+        }
+
+        function displayOrders(requests) {
+            const container = document.getElementById('ordersContainer');
+            
+            if (requests.length === 0) {
+                container.innerHTML = '<p>No active orders found.</p>';
+                return;
+            }
+
+            container.innerHTML = '<h3>My Service Orders</h3>' + requests.map(req => `
+                <div class="card">
+                    <div class="card-header">
+                        Request #${req.RequestID} - Service Order Created
+                    </div>
+                    
+                    <div class="order-agreement">
+                        <strong>📋 Service Agreement</strong><br>
+                        <strong>Service Address:</strong> ${req.Service_Address}<br>
+                        <strong>Cleaning Type:</strong> ${req.Cleaning_Type}<br>
+                        <strong>Rooms:</strong> ${req.Rooms}<br>
+                        <strong>Scheduled Date:</strong> ${req.Pref_Date}<br>
+                        <strong>Scheduled Time:</strong> ${req.Pref_Time}<br>
+                        <strong>Agreed Price:</strong> $${req.Pref_Budget}<br>
+                        <strong>Request Submitted:</strong> ${new Date(req.Created_At).toLocaleString()}<br>
+                    </div>
+                    
+                    <div id="order-status-${req.RequestID}" style="margin-top: 10px;">
+                        Loading order status...
+                    </div>
+                </div>
+            `).join('');
+
+            // Load detailed order status for each
+            requests.forEach(req => {
+                loadOrderStatus(req.RequestID);
+            });
+        }
+
+        async function loadOrderStatus(requestId) {
+            try {
+                const response = await fetch(`http://localhost:5050/orders?status=all`);
+                const allOrders = await response.json();
+                
+                const order = allOrders.find(o => o.RequestID === requestId);
+                
+                if (order) {
+                    const statusDiv = document.getElementById(`order-status-${requestId}`);
+                    statusDiv.innerHTML = `
+                        <strong>Order Status:</strong> 
+                        <span class="status-badge status-${order.Order_Status}">
+                            ${order.Order_Status.toUpperCase().replace('_', ' ')}
+                        </span><br>
+                        ${order.Completion_Date ? `<strong>✅ Completed:</strong> ${new Date(order.Completion_Date).toLocaleString()}<br>` : ''}
+                        ${order.Order_Status === 'in_progress' ? '<em>Service is currently in progress...</em>' : ''}
+                        ${order.Order_Status === 'scheduled' ? '<em>Service is scheduled and will begin soon.</em>' : ''}
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading order status:', error);
+            }
+        }
+
+        async function loadClientBills() {
+            try {
+                const response = await fetch(`http://localhost:5050/client-bills/${currentClientId}`);
+                const bills = await response.json();
+                
+                displayBills(bills);
+            } catch (error) {
+                console.error('Error loading bills:', error);
+                alert('Failed to load bills');
+            }
+        }
+
+        function displayBills(bills) {
+            const container = document.getElementById('billsContainer');
+            
+            if (bills.length === 0) {
+                container.innerHTML = '<p>No bills found.</p>';
+                return;
+            }
+
+            container.innerHTML = '<h3>My Bills</h3>' + bills.map(bill => `
+                <div class="card">
+                    <div class="card-header">
+                        Bill #${bill.BillID} for Order #${bill.OrderID}
+                        <span class="status-badge status-${bill.Bill_Status}">${bill.Bill_Status.toUpperCase()}</span>
+                    </div>
+                    
+                    <div class="bill-section">
+                        <strong>📄 Invoice Details</strong><br>
+                        <strong>Service Date:</strong> ${bill.Scheduled_Date} at ${bill.Scheduled_Time}<br>
+                        <strong>Base Amount:</strong> $${bill.Amount}<br>
+                        <strong>Tax:</strong> $${bill.Tax}<br>
+                        <strong>Total Amount:</strong> <span style="font-size: 18px; color: #d9534f;">$${bill.Total_Amount}</span><br>
+                        ${bill.Bill_Note ? `<strong>Note:</strong> ${bill.Bill_Note}<br>` : ''}
+                        <strong>Bill Generated:</strong> ${new Date(bill.Created_At).toLocaleString()}<br>
+                        ${bill.Paid_At ? `<strong>✅ Paid On:</strong> ${new Date(bill.Paid_At).toLocaleString()}<br>` : ''}
+                    </div>
+                    
+                    ${bill.Bill_Status === 'pending' ? `
+                        <button class="pay-btn" onclick="payBill(${bill.BillID})">Pay Now</button>
+                    ` : ''}
+                    
+                    ${bill.Bill_Status === 'paid' ? `
+                        <p style="color: #28a745; font-weight: bold;">✅ Payment Received - Thank you!</p>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function payBill(billId) {
+            if (!confirm('Proceed with payment? (This is a simulation)')) return;
+
+            try {
+                const response = await fetch('http://localhost:5050/pay-bill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ billId })
+                });
+
+                if (response.ok) {
+                    alert('Payment successful! Thank you.');
+                    loadClientBills();
+                } else {
+                    alert('Payment failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error processing payment');
+            }
+        }
+    </script>
+</body>
+</html>

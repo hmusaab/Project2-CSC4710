@@ -52,8 +52,8 @@ const app = express(); //app is an instance of the framework express. app will a
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 
-const location = require('path');
-app.use(express.static(location.join(__dirname,"../Frontend"))); //because project folder is not in the same location as XAMPP installation (My local machine needed this alt)
+const path = require('path');
+app.use(express.static(path.join(__dirname,"../Frontend"))); //because project folder is not in the same location as XAMPP installation (My local machine needed this alt)
 
 
 //the use of app.post below is to register a new client, grab data that was sent into the localhost url endpoint and upload it to the Client table via local mySQL database server

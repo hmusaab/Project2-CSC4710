@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Order Management - Anna's Portal</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        .order-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .order-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .order-details {
+            margin: 5px 0;
+        }
+        .action-section {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+        .start-btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        .complete-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .cancel-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+        }
+        .bill-btn {
+            background-color: #ffc107;
+            color: black;
+            border: none;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-scheduled { background-color: #17a2b8; color: white; }
+        .status-in_progress { background-color: #007bff; color: white; }
+        .status-completed { background-color: #28a745; color: white; }
+        .status-cancelled { background-color: #dc3545; color: white; }
+        .bill-section {
+            background-color: #fff3cd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        nav {
+            background-color: #343a40;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            padding: 5px 10px;
+        }
+        nav a:hover {
+            background-color: #495057;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body style="font-family: Arial;">
+    <nav>
+        <a href="QuoteManagement.html">Quote Management</a>
+        <a href="OrderManagement.html">Order Management</a>
+    </nav>
+
+    <h2>Service Orders Management</h2>
+    
+    <div>
+        <button onclick="loadOrders('scheduled')">Scheduled Orders</button>
+        <button onclick="loadOrders('in_progress')">In Progress</button>
+        <button onclick="loadOrders('completed')">Completed</button>
+        <button onclick="loadOrders('all')">All Orders</button>
+    </div>
+
+    <div id="ordersContainer"></div>
+
+    <script>
+        async function loadOrders(status = 'scheduled') {
+            try {
+                const response = await fetch(`http://localhost:5050/orders?status=${status}`);
+                const orders = await response.json();
+                displayOrders(orders);
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                alert('Failed to load orders');
+            }
+        }
+
+        function displayOrders(orders) {
+            const container = document.getElementById('ordersContainer');
+            if (orders.length === 0) {
+                container.innerHTML = '<p>No orders found.</p>';
+                return;
+            }
+
+            container.innerHTML = orders.map(order => `
+                <div class="order-card">
+                    <div class="order-header">
+                        Order #${order.OrderID}
+                        <span class="status-badge status-${order.Order_Status}">${order.Order_Status.toUpperCase().replace('_', ' ')}</span>
+                    </div>
+                    <div class="order-details">
+                        <strong>Client ID:</strong> ${order.ClientID}<br>
+                        <strong>Service Address:</strong> ${order.Service_Address || 'N/A'}<br>
+                        <strong>Cleaning Type:</strong> ${order.Cleaning_Type || 'N/A'}<br>
+                        <strong>Rooms:</strong> ${order.Rooms || 'N/A'}<br>
+                        <strong>Final Price:</strong> $${order.Final_Price}<br>
+                        <strong>Scheduled Date:</strong> ${order.Scheduled_Date}<br>
+                        <strong>Scheduled Time:</strong> ${order.Scheduled_Time}<br>
+                        <strong>Order Created:</strong> ${new Date(order.Created_At).toLocaleString()}<br>
+                        ${order.Completion_Date ? `<strong>Completed On:</strong> ${new Date(order.Completion_Date).toLocaleString()}<br>` : ''}
+                    </div>
+                    
+                    <div id="bill-info-${order.OrderID}"></div>
+                    
+                    <div class="action-section">
+                        ${order.Order_Status === 'scheduled' ? `
+                            <button class="start-btn" onclick="startOrder(${order.OrderID})">Start Service</button>
+                            <button class="cancel-btn" onclick="cancelOrder(${order.OrderID})">Cancel Order</button>
+                        ` : ''}
+                        
+                        ${order.Order_Status === 'in_progress' ? `
+                            <button class="complete-btn" onclick="completeOrder(${order.OrderID})">Mark as Completed</button>
+                        ` : ''}
+                        
+                        ${order.Order_Status === 'completed' && !order.has_bill ? `
+                            <button class="bill-btn" onclick="showBillForm(${order.OrderID}, ${order.Final_Price}, '${order.ClientID}')">Generate Bill</button>
+                            
+                            <div id="bill-form-${order.OrderID}" class="hidden" style="margin-top: 10px;">
+                                <h4>Generate Bill for Order #${order.OrderID}</h4>
+                                <label>Base Amount:</label>
+                                <input type="number" id="bill-amount-${order.OrderID}" value="${order.Final_Price}" step="0.01" required><br>
+                                
+                                <label>Tax Rate (%):</label>
+                                <input type="number" id="bill-tax-rate-${order.OrderID}" value="8.5" step="0.01" required><br>
+                                
+                                <label>Bill Note (optional):</label><br>
+                                <textarea id="bill-note-${order.OrderID}" rows="3" style="width: 100%;" placeholder="Additional charges, discounts, or notes..."></textarea><br>
+                                
+                                <div style="margin: 10px 0;">
+                                    <strong>Total Amount: $<span id="bill-total-${order.OrderID}">0.00</span></strong>
+                                </div>
+                                
+                                <button class="bill-btn" onclick="generateBill(${order.OrderID}, '${order.ClientID}')">Submit Bill</button>
+                                <button class="cancel-btn" onclick="hideBillForm(${order.OrderID})">Cancel</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // Load bill info for completed orders
+            orders.forEach(order => {
+                if (order.Order_Status === 'completed') {
+                    loadBillInfo(order.OrderID);
+                }
+            });
+
+            // Add event listeners for tax calculation
+            orders.forEach(order => {
+                if (order.Order_Status === 'completed' && !order.has_bill) {
+                    const amountInput = document.getElementById(`bill-amount-${order.OrderID}`);
+                    const taxInput = document.getElementById(`bill-tax-rate-${order.OrderID}`);
+                    if (amountInput && taxInput) {
+                        amountInput.addEventListener('input', () => calculateTotal(order.OrderID));
+                        taxInput.addEventListener('input', () => calculateTotal(order.OrderID));
+                    }
+                }
+            });
+        }
+
+        function calculateTotal(orderId) {
+            const amount = parseFloat(document.getElementById(`bill-amount-${orderId}`).value) || 0;
+            const taxRate = parseFloat(document.getElementById(`bill-tax-rate-${orderId}`).value) || 0;
+            const tax = amount * (taxRate / 100);
+            const total = amount + tax;
+            document.getElementById(`bill-total-${orderId}`).textContent = total.toFixed(2);
+        }
+
+        async function loadBillInfo(orderId) {
+            try {
+                const response = await fetch(`http://localhost:5050/bill/${orderId}`);
+                const bill = await response.json();
+                
+                if (bill) {
+                    const billDiv = document.getElementById(`bill-info-${orderId}`);
+                    billDiv.className = 'bill-section';
+                    billDiv.innerHTML = `
+                        <strong>📄 Bill #${bill.BillID}</strong><br>
+                        <strong>Amount:</strong> $${bill.Amount}<br>
+                        <strong>Tax:</strong> $${bill.Tax}<br>
+                        <strong>Total Amount:</strong> $${bill.Total_Amount}<br>
+                        <strong>Status:</strong> ${bill.Bill_Status.toUpperCase()}<br>
+                        ${bill.Bill_Note ? `<strong>Note:</strong> ${bill.Bill_Note}<br>` : ''}
+                        <strong>Generated:</strong> ${new Date(bill.Created_At).toLocaleString()}<br>
+                        ${bill.Paid_At ? `<strong>Paid:</strong> ${new Date(bill.Paid_At).toLocaleString()}<br>` : ''}
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading bill info:', error);
+            }
+        }
+
+        function showBillForm(orderId, finalPrice, clientId) {
+            document.getElementById(`bill-form-${orderId}`).classList.remove('hidden');
+            calculateTotal(orderId);
+        }
+
+        function hideBillForm(orderId) {
+            document.getElementById(`bill-form-${orderId}`).classList.add('hidden');
+        }
+
+        async function startOrder(orderId) {
+            if (!confirm('Start this service order?')) return;
+
+            try {
+                const response = await fetch('http://localhost:5050/start-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId })
+                });
+
+                if (response.ok) {
+                    alert('Order started successfully');
+                    loadOrders('in_progress');
+                } else {
+                    alert('Failed to start order');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error starting order');
+            }
+        }
+
+        async function completeOrder(orderId) {
+            if (!confirm('Mark this order as completed?')) return;
+
+            try {
+                const response = await fetch('http://localhost:5050/complete-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId })
+                });
+
+                if (response.ok) {
+                    alert('Order marked as completed. You can now generate a bill.');
+                    loadOrders('completed');
+                } else {
+                    alert('Failed to complete order');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error completing order');
+            }
+        }
+
+        async function cancelOrder(orderId) {
+            const reason = prompt('Enter reason for cancellation:');
+            if (!reason) return;
+
+            try {
+                const response = await fetch('http://localhost:5050/cancel-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId, reason })
+                });
+
+                if (response.ok) {
+                    alert('Order cancelled successfully');
+                    loadOrders('cancelled');
+                } else {
+                    alert('Failed to cancel order');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error cancelling order');
+            }
+        }
+
+        async function generateBill(orderId, clientId) {
+            const amount = parseFloat(document.getElementById(`bill-amount-${orderId}`).value);
+            const taxRate = parseFloat(document.getElementById(`bill-tax-rate-${orderId}`).value);
+            const note = document.getElementById(`bill-note-${orderId}`).value;
+
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+
+            const tax = amount * (taxRate / 100);
+            const totalAmount = amount + tax;
+
+            try {
+                const response = await fetch('http://localhost:5050/generate-bill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        orderId,
+                        clientId,
+                        amount,
+                        tax,
+                        totalAmount,
+                        note
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Bill generated successfully! Bill ID: ${result.billId}`);
+                    loadOrders('completed');
+                } else {
+                    alert('Failed to generate bill');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error generating bill');
+            }
+        }
+
+        // Load scheduled orders on page load
+        window.onload = () => loadOrders('scheduled');
+    </script>
+</body>
+</html>
