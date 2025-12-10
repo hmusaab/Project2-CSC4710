@@ -1,7 +1,6 @@
 
 //import the modules/dependcies from the npm/package.json file
 
-
 const express = require('express') // Imports the express module, which is a web application framework for Node.js which provides functionality to do the following: It simplifies routing and handling HTTP (a set of rules we follow when trasnfering info on the internet or bteween our computer and a server) REQUESTS like POST, GET, etc.
 
 const mysql = require('mysql')  //  Imports the mysql module, which allows Node.js to interact with mySQL databases.
@@ -52,17 +51,17 @@ const app = express(); //app is an instance of the framework express. app will a
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 
-const location = require('path');
-app.use(express.static(location.join(__dirname,"../Frontend"))); //because project folder is not in the same location as XAMPP installation (My local machine needed this alt)
+const Clocation = require('path');
+app.use(express.static(Clocation.join(__dirname,"../Frontend"))); //because project folder is not in the same location as XAMPP installation (My local machine needed this alt)
 
 
 //the use of app.post below is to register a new client, grab data that was sent into the localhost url endpoint and upload it to the Client table via local mySQL database server
 //again, for the client registration 
 app.post('/insert', (request, response) => { //we use question marks as pevention of SQL injection attacks for encryption
-    const{FirstName, LastName, PrimaryAddress, PhoneNumber, Email, CreditCardNumber} = request.body; //POST http requests we use .body
-    const QueryVariable = 'INSERT INTO client (FirstName, LastName, PrimaryAddress, PhoneNumber, Email, CreditCardNumber, ClientID) VALUES (?, ?, ?, ?, ?, ?, ?, 0)';
+    const{FirstName, LastName, Primary_Address, Phone_Number, Email, CreditCardNumber, CreditCardCode} = request.body; //POST http requests we use .body
+    const QueryVariable = 'INSERT INTO client (FirstName, LastName, Primary_Address, Phone_Number, Email, CreditCardNumber, CreditCardCode) VALUES (?, ?, ?, ?, ?, ?, ?)';
     //below is the exception handler in order for the data that is grabbed from the html table to be populated in the users table 
-    connection.query(QueryVariable, [UserID, Password, FirstName, LastName, Age, Salary, RegisterDate, LastSignInTime], (error, result) => {
+    connection.query(QueryVariable, [FirstName, LastName, Primary_Address, Phone_Number, Email, CreditCardNumber, CreditCardCode], (error, result) => {
         if(error){
             console.log(error); //console.log is the message that will appear on the console (terminal)
             response.status(500).send("Unable to populate table users"); //response.status is the message that will appear on the .html page
@@ -74,3 +73,11 @@ app.post('/insert', (request, response) => { //we use question marks as peventio
         }
     });
 });
+
+
+
+app.listen(5050, 
+    () => {
+        console.log("I am listening on the fixed port 5050.")
+    }
+);
