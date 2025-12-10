@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Bill Dispute Management - Anna's Portal</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        .dispute-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .dispute-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .dispute-details {
+            margin: 5px 0;
+        }
+        .action-section {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+        .revise-btn {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+        }
+        .resolve-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .cancel-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+        }
+        .escalate-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+        }
+        .bill-info {
+            background-color: #fff3cd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        .dispute-reason {
+            background-color: #ffe5e5;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-open { background-color: #dc3545; color: white; }
+        .status-under_review { background-color: #ffc107; }
+        .status-resolved { background-color: #28a745; color: white; }
+        .status-escalated { background-color: #6c757d; color: white; }
+        nav {
+            background-color: #343a40;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            padding: 5px 10px;
+        }
+        nav a:hover {
+            background-color: #495057;
+            border-radius: 3px;
+        }
+        .revision-history {
+            background-color: #e7f3ff;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body style="font-family: Arial;">
+    <nav>
+        <a href="QuoteManagement.html">Quote Management</a>
+        <a href="OrderManagement.html">Order Management</a>
+        <a href="BillDisputeManagement.html">Bill Disputes</a>
+    </nav>
+
+    <h2>Bill Dispute Management</h2>
+    
+    <div>
+        <button onclick="loadDisputes('open')">Open Disputes</button>
+        <button onclick="loadDisputes('under_review')">Under Review</button>
+        <button onclick="loadDisputes('resolved')">Resolved</button>
+        <button onclick="loadDisputes('all')">All Disputes</button>
+    </div>
+
+    <div id="disputesContainer"></div>
+
+    <script>
+        async function loadDisputes(status = 'open') {
+            try {
+                const response = await fetch(`http://localhost:5050/all-disputes?status=${status}`);
+                const disputes = await response.json();
+                displayDisputes(disputes);
+            } catch (error) {
+                console.error('Error loading disputes:', error);
+                alert('Failed to load disputes');
+            }
+        }
+
+        function displayDisputes(disputes) {
+            const container = document.getElementById('disputesContainer');
+            if (disputes.length === 0) {
+                container.innerHTML = '<p>No disputes found.</p>';
+                return;
+            }
+
+            container.innerHTML = disputes.map(disp => `
+                <div class="dispute-card">
+                    <div class="dispute-header">
+                        Dispute #${disp.DisputeID} - Bill #${disp.BillID}
+                        <span class="status-badge status-${disp.Dispute_Status}">${disp.Dispute_Status.toUpperCase().replace('_', ' ')}</span>
+                    </div>
+                    
+                    <div class="bill-info">
+                        <strong>📄 Bill Information:</strong><br>
+                        <strong>Order ID:</strong> ${disp.OrderID}<br>
+                        <strong>Client ID:</strong> ${disp.ClientID}<br>
+                        <strong>Original Amount:</strong> $${disp.Amount}<br>
+                        <strong>Tax:</strong> $${disp.Tax}<br>
+                        <strong>Total:</strong> $${disp.Total_Amount}<br>
+                        ${disp.Bill_Note ? `<strong>Bill Note:</strong> ${disp.Bill_Note}<br>` : ''}
+                        <strong>Bill Generated:</strong> ${new Date(disp.Bill_Created_At).toLocaleString()}<br>
+                    </div>
+                    
+                    <div class="dispute-reason">
+                        <strong>🚨 Dispute Reason:</strong><br>
+                        ${disp.Dispute_Reason}<br>
+                        <strong>Filed On:</strong> ${new Date(disp.Created_At).toLocaleString()}<br>
+                        ${disp.Resolved_At ? `<strong>Resolved On:</strong> ${new Date(disp.Resolved_At).toLocaleString()}<br>` : ''}
+                    </div>
+                    
+                    <div id="revision-history-${disp.DisputeID}"></div>
+                    
+                    <div class="action-section">
+                        ${disp.Dispute_Status === 'open' || disp.Dispute_Status === 'under_review' ? `
+                            <button class="revise-btn" onclick="showReviseForm(${disp.DisputeID}, ${disp.BillID}, ${disp.Amount}, ${disp.Tax}, ${disp.Total_Amount})">Revise Bill</button>
+                            <button class="resolve-btn" onclick="resolveDispute(${disp.DisputeID})">Mark as Resolved</button>
+                            <button class="escalate-btn" onclick="escalateDispute(${disp.DisputeID})">Escalate</button>
+                            
+                            <div id="revise-form-${disp.DisputeID}" class="hidden" style="margin-top: 10px; background: #e7f3ff; padding: 10px; border-radius: 5px;">
+                                <h4>📝 Revise Bill</h4>
+                                
+                                <label>Revision Type:</label>
+                                <select id="revision-type-${disp.DisputeID}" required>
+                                    <option value="adjustment">Adjustment</option>
+                                    <option value="discount">Discount</option>
+                                    <option value="correction">Correction</option>
+                                </select><br>
+                                
+                                <label>New Base Amount:</label>
+                                <input type="number" id="new-amount-${disp.DisputeID}" value="${disp.Amount}" step="0.01" required><br>
+                                
+                                <label>New Tax Rate (%):</label>
+                                <input type="number" id="new-tax-rate-${disp.DisputeID}" value="8.5" step="0.01" required><br>
+                                
+                                <div style="margin: 10px 0;">
+                                    <strong>Previous Total:</strong> <strike>$${disp.Total_Amount}</strike><br>
+                                    <strong>New Total:</strong> $<span id="new-total-${disp.DisputeID}">0.00</span>
+                                </div>
+                                
+                                <label>Explanation for Revision:</label><br>
+                                <textarea id="revision-note-${disp.DisputeID}" rows="4" style="width: 100%;" placeholder="Explain the changes made..." required></textarea><br>
+                                
+                                <button class="revise-btn" onclick="submitRevision(${disp.DisputeID}, ${disp.BillID}, ${disp.Amount}, ${disp.Tax}, ${disp.Total_Amount})">Submit Revision</button>
+                                <button class="cancel-btn" onclick="hideReviseForm(${disp.DisputeID})">Cancel</button>
+                            </div>
+                        ` : ''}
+                        
+                        ${disp.Dispute_Status === 'resolved' ? `
+                            <p style="color: #28a745; font-weight: bold;">✅ Dispute Resolved</p>
+                        ` : ''}
+                        
+                        ${disp.Dispute_Status === 'escalated' ? `
+                            <p style="color: #6c757d; font-weight: bold;">⚠️ Escalated - Requires External Resolution</p>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // Load revision history and add event listeners
+            disputes.forEach(disp => {
+                loadRevisionHistory(disp.DisputeID, disp.BillID);
+                
+                const amountInput = document.getElementById(`new-amount-${disp.DisputeID}`);
+                const taxRateInput = document.getElementById(`new-tax-rate-${disp.DisputeID}`);
+                if (amountInput && taxRateInput) {
+                    amountInput.addEventListener('input', () => calculateNewTotal(disp.DisputeID));
+                    taxRateInput.addEventListener('input', () => calculateNewTotal(disp.DisputeID));
+                    calculateNewTotal(disp.DisputeID);
+                }
+            });
+        }
+
+        function calculateNewTotal(disputeId) {
+            const amount = parseFloat(document.getElementById(`new-amount-${disputeId}`).value) || 0;
+            const taxRate = parseFloat(document.getElementById(`new-tax-rate-${disputeId}`).value) || 0;
+            const tax = amount * (taxRate / 100);
+            const total = amount + tax;
+            document.getElementById(`new-total-${disputeId}`).textContent = total.toFixed(2);
+        }
+
+        async function loadRevisionHistory(disputeId, billId) {
+            try {
+                const response = await fetch(`http://localhost:5050/bill-revisions/${billId}`);
+                const revisions = await response.json();
+                
+                if (revisions.length > 0) {
+                    const historyDiv = document.getElementById(`revision-history-${disputeId}`);
+                    historyDiv.className = 'revision-history';
+                    historyDiv.innerHTML = '<strong>📝 Revision History:</strong>' + 
+                        revisions.map(rev => `
+                            <div style="margin: 10px 0; padding: 5px; border-left: 3px solid #007bff;">
+                                <strong>Type:</strong> ${rev.Revision_Type.toUpperCase()}<br>
+                                <strong>Previous Total:</strong> <strike>$${rev.Previous_Total}</strike> → <strong>New Total: $${rev.New_Total}</strong><br>
+                                <strong>Explanation:</strong> ${rev.Revision_Note}<br>
+                                <strong>Revised:</strong> ${new Date(rev.Created_At).toLocaleString()}<br>
+                            </div>
+                        `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading revision history:', error);
+            }
+        }
+
+        function showReviseForm(disputeId, billId, amount, tax, total) {
+            document.getElementById(`revise-form-${disputeId}`).classList.remove('hidden');
+        }
+
+        function hideReviseForm(disputeId) {
+            document.getElementById(`revise-form-${disputeId}`).classList.add('hidden');
+        }
+
+        async function submitRevision(disputeId, billId, prevAmount, prevTax, prevTotal) {
+            const revisionType = document.getElementById(`revision-type-${disputeId}`).value;
+            const newAmount = parseFloat(document.getElementById(`new-amount-${disputeId}`).value);
+            const taxRate = parseFloat(document.getElementById(`new-tax-rate-${disputeId}`).value);
+            const revisionNote = document.getElementById(`revision-note-${disputeId}`).value;
+
+            if (!newAmount || !taxRate || !revisionNote.trim()) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            const newTax = newAmount * (taxRate / 100);
+            const newTotal = newAmount + newTax;
+
+            try {
+                const response = await fetch('http://localhost:5050/revise-bill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        billId,
+                        disputeId,
+                        previousAmount: prevAmount,
+                        newAmount,
+                        previousTax: prevTax,
+                        newTax,
+                        previousTotal: prevTotal,
+                        newTotal,
+                        revisionType,
+                        revisionNote
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Bill revised successfully. Client will be notified.');
+                    loadDisputes('open');
+                } else {
+                    alert('Failed to revise bill');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error revising bill');
+            }
+        }
+
+        async function resolveDispute(disputeId) {
+            if (!confirm('Mark this dispute as resolved?')) return;
+
+            try {
+                const response = await fetch('http://localhost:5050/resolve-dispute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ disputeId })
+                });
+
+                if (response.ok) {
+                    alert('Dispute marked as resolved');
+                    loadDisputes('open');
+                } else {
+                    alert('Failed to resolve dispute');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error resolving dispute');
+            }
+        }
+
+        async function escalateDispute(disputeId) {
+            const reason = prompt('Enter reason for escalation:');
+            if (!reason) return;
+
+            try {
+                const response = await fetch('http://localhost:5050/escalate-dispute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ disputeId, reason })
+                });
+
+                if (response.ok) {
+                    alert('Dispute escalated. Requires external resolution.');
+                    loadDisputes('escalated');
+                } else {
+                    alert('Failed to escalate dispute');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error escalating dispute');
+            }
+        }
+
+        // Load open disputes on page load
+        window.onload = () => loadDisputes('open');
+    </script>
+</body>
+</html>

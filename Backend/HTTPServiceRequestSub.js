@@ -412,22 +412,210 @@ app.get('/client-bills/:clientId', (request, response) => {
     });
 });
 
-// ============ MARK BILL AS PAID ============
-// POST endpoint for marking a bill as paid
-// Request body: {billId}
-app.post('/pay-bill', (request, response) => {
-    const {billId} = request.body; // Extract bill ID
+// ============ PAY BILL WITH CREDIT CARD ============
+// POST endpoint for paying a bill with credit card
+// Request body: {billId, clientId, amount, cardLastFour, cardHolderName}
+app.post('/pay-bill-credit-card', (request, response) => {
+    const {billId, clientId, amount, cardLastFour, cardHolderName} = request.body; // Extract payment details
     
-    // Update bill status to 'paid' and set payment timestamp
-    const updateQuery = 'UPDATE Bill SET Bill_Status = "paid", Paid_At = NOW() WHERE BillID = ?';
+    // Generate transaction ID
+    const transactionId = 'TXN' + Date.now() + Math.random().toString(36).substr(2, 9);
     
-    connection.query(updateQuery, [billId], (error, result) => {
+    // Insert payment record
+    const paymentQuery = `INSERT INTO PaymentRecord (BillID, ClientID, Amount_Paid, Payment_Method, Card_Last_Four, Payment_Status, Transaction_ID)
+                         VALUES (?, ?, ?, 'Credit Card', ?, 'completed', ?)`;
+    
+    connection.query(paymentQuery, [billId, clientId, amount, cardLastFour, transactionId], (error, result) => {
         if(error){
             console.log(error);
-            response.status(500).send("Unable to mark bill as paid");
+            response.status(500).send("Unable to process payment");
         } else {
-            console.log(`Bill ${billId} marked as paid`);
-            response.status(200).json({message: "Bill marked as paid"});
+            // Update bill status to 'paid' and set payment details
+            const updateQuery = 'UPDATE Bill SET Bill_Status = "paid", Paid_At = NOW(), Payment_Method = "Credit Card" WHERE BillID = ?';
+            connection.query(updateQuery, [billId], (err, res) => {
+                if(err){
+                    console.log(err);
+                }
+                console.log(`Bill ${billId} paid via credit card. Transaction ID: ${transactionId}`);
+                response.status(200).json({message: "Payment successful", transactionId: transactionId});
+            });
+        }
+    });
+});
+
+// ============ DISPUTE BILL ============
+// POST endpoint for client to dispute a bill
+// Request body: {billId, clientId, disputeReason}
+app.post('/dispute-bill', (request, response) => {
+    const {billId, clientId, disputeReason} = request.body; // Extract dispute details
+    
+    // Check if dispute already exists for this bill
+    const checkQuery = 'SELECT DisputeID FROM BillDispute WHERE BillID = ? AND Dispute_Status IN ("open", "under_review")';
+    
+    connection.query(checkQuery, [billId], (checkError, checkResults) => {
+        if(checkError){
+            console.log(checkError);
+            response.status(500).send("Error checking existing disputes");
+            return;
+        }
+        
+        if(checkResults.length > 0){
+            response.status(400).send("Active dispute already exists for this bill");
+            return;
+        }
+        
+        // Insert new dispute
+        const disputeQuery = `INSERT INTO BillDispute (BillID, ClientID, Dispute_Reason, Dispute_Status)
+                             VALUES (?, ?, ?, 'open')`;
+        
+        connection.query(disputeQuery, [billId, clientId, disputeReason], (error, result) => {
+            if(error){
+                console.log(error);
+                response.status(500).send("Unable to submit dispute");
+            } else {
+                // Update bill status to 'disputed'
+                const updateQuery = 'UPDATE Bill SET Bill_Status = "disputed" WHERE BillID = ?';
+                connection.query(updateQuery, [billId], (err, res) => {
+                    console.log(`Bill ${billId} disputed. Dispute ID: ${result.insertId}`);
+                    response.status(200).json({message: "Dispute submitted successfully", disputeId: result.insertId});
+                });
+            }
+        });
+    });
+});
+
+// ============ GET ALL DISPUTES (for Anna) ============
+// GET endpoint to retrieve bill disputes filtered by status
+app.get('/all-disputes', (request, response) => {
+    const status = request.query.status; // Get status filter from query parameter
+    
+    // Join tables to get full dispute information
+    let query = `SELECT bd.*, b.OrderID, b.Amount, b.Tax, b.Total_Amount, b.Bill_Note, b.Created_At as Bill_Created_At, b.ClientID
+                 FROM BillDispute bd
+                 JOIN Bill b ON bd.BillID = b.BillID`;
+    let params = [];
+    
+    // Add WHERE clause if status is specified and not 'all'
+    if (status && status !== 'all') {
+        query += ' WHERE bd.Dispute_Status = ?';
+        params.push(status);
+    }
+    
+    query += ' ORDER BY bd.Created_At DESC';
+    
+    connection.query(query, params, (error, results) => {
+        if(error){
+            console.log(error);
+            response.status(500).send("Unable to fetch disputes");
+        } else {
+            response.status(200).json(results); // Return array of disputes
+        }
+    });
+});
+
+// ============ GET DISPUTES FOR SPECIFIC BILL ============
+// GET endpoint to retrieve dispute history for a specific bill
+app.get('/bill-disputes/:billId', (request, response) => {
+    const billId = request.params.billId; // Get bill ID from URL parameter
+    
+    const query = 'SELECT * FROM BillDispute WHERE BillID = ? ORDER BY Created_At DESC';
+    
+    connection.query(query, [billId], (error, results) => {
+        if(error){
+            console.log(error);
+            response.status(500).send("Unable to fetch bill disputes");
+        } else {
+            response.status(200).json(results); // Return array of disputes
+        }
+    });
+});
+
+// ============ REVISE BILL ============
+// POST endpoint for Anna to revise a disputed bill
+// Request body: {billId, disputeId, previousAmount, newAmount, previousTax, newTax, previousTotal, newTotal, revisionType, revisionNote}
+app.post('/revise-bill', (request, response) => {
+    const {billId, disputeId, previousAmount, newAmount, previousTax, newTax, previousTotal, newTotal, revisionType, revisionNote} = request.body;
+    
+    // Insert bill revision record (for evidence/audit trail)
+    const revisionQuery = `INSERT INTO BillRevision (BillID, DisputeID, Previous_Amount, New_Amount, Previous_Tax, New_Tax, Previous_Total, New_Total, Revision_Type, Revision_Note)
+                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    
+    connection.query(revisionQuery, [billId, disputeId, previousAmount, newAmount, previousTax, newTax, previousTotal, newTotal, revisionType, revisionNote], (error, result) => {
+        if(error){
+            console.log(error);
+            response.status(500).send("Unable to create revision record");
+        } else {
+            // Update the bill with new amounts
+            const updateBillQuery = 'UPDATE Bill SET Amount = ?, Tax = ?, Total_Amount = ?, Bill_Status = "revised" WHERE BillID = ?';
+            connection.query(updateBillQuery, [newAmount, newTax, newTotal, billId], (err, res) => {
+                if(err){
+                    console.log(err);
+                }
+                
+                // Update dispute status to under_review
+                const updateDisputeQuery = 'UPDATE BillDispute SET Dispute_Status = "under_review" WHERE DisputeID = ?';
+                connection.query(updateDisputeQuery, [disputeId], (e, r) => {
+                    console.log(`Bill ${billId} revised. Revision ID: ${result.insertId}`);
+                    response.status(200).json({message: "Bill revised successfully", revisionId: result.insertId});
+                });
+            });
+        }
+    });
+});
+
+// ============ GET BILL REVISIONS ============
+// GET endpoint to retrieve revision history for a specific bill
+app.get('/bill-revisions/:billId', (request, response) => {
+    const billId = request.params.billId; // Get bill ID from URL parameter
+    
+    const query = 'SELECT * FROM BillRevision WHERE BillID = ? ORDER BY Created_At DESC';
+    
+    connection.query(query, [billId], (error, results) => {
+        if(error){
+            console.log(error);
+            response.status(500).send("Unable to fetch bill revisions");
+        } else {
+            response.status(200).json(results); // Return array of revisions
+        }
+    });
+});
+
+// ============ RESOLVE DISPUTE ============
+// POST endpoint for Anna to mark a dispute as resolved
+// Request body: {disputeId}
+app.post('/resolve-dispute', (request, response) => {
+    const {disputeId} = request.body; // Extract dispute ID
+    
+    // Update dispute status to 'resolved' and set resolution timestamp
+    const updateQuery = 'UPDATE BillDispute SET Dispute_Status = "resolved", Resolved_At = NOW() WHERE DisputeID = ?';
+    
+    connection.query(updateQuery, [disputeId], (error, result) => {
+        if(error){
+            console.log(error);
+            response.status(500).send("Unable to resolve dispute");
+        } else {
+            console.log(`Dispute ${disputeId} resolved`);
+            response.status(200).json({message: "Dispute resolved successfully"});
+        }
+    });
+});
+
+// ============ ESCALATE DISPUTE ============
+// POST endpoint for Anna to escalate a dispute
+// Request body: {disputeId, reason}
+app.post('/escalate-dispute', (request, response) => {
+    const {disputeId, reason} = request.body; // Extract dispute ID and reason
+    
+    // Update dispute status to 'escalated'
+    const updateQuery = 'UPDATE BillDispute SET Dispute_Status = "escalated" WHERE DisputeID = ?';
+    
+    connection.query(updateQuery, [disputeId], (error, result) => {
+        if(error){
+            console.log(error);
+            response.status(500).send("Unable to escalate dispute");
+        } else {
+            console.log(`Dispute ${disputeId} escalated. Reason: ${reason}`);
+            response.status(200).json({message: "Dispute escalated"});
         }
     });
 });
