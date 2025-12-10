@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>My Orders & Bills - Client Portal</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        .card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .card-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .card-details {
+            margin: 5px 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-scheduled { background-color: #17a2b8; color: white; }
+        .status-in_progress { background-color: #007bff; color: white; }
+        .status-completed { background-color: #28a745; color: white; }
+        .status-cancelled { background-color: #dc3545; color: white; }
+        .status-pending { background-color: #ffc107; }
+        .status-paid { background-color: #28a745; color: white; }
+        .status-overdue { background-color: #dc3545; color: white; }
+        .status-disputed { background-color: #ff6b6b; color: white; }
+        .status-revised { background-color: #17a2b8; color: white; }
+        .bill-section {
+            background-color: #fff3cd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        .dispute-section {
+            background-color: #ffe5e5;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+        .revision-section {
+            background-color: #e7f3ff;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .dispute-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+        }
+        .hidden {
+            display: none;
+        }
+        .order-agreement {
+            background-color: #e7f3ff;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+        .pay-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .tab-buttons button {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .tab-buttons button.active {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body style="font-family: Arial;">
+    <h2>My Orders & Bills</h2>
+    
+    <div>
+        <label>Client ID:</label>
+        <input type="text" id="clientId" placeholder="Enter your Client ID">
+        <button onclick="loadClientData()">Load My Data</button>
+    </div>
+
+    <div class="tab-buttons" style="margin-top: 20px;">
+        <button id="ordersTab" class="active" onclick="showTab('orders')">My Orders</button>
+        <button id="billsTab" onclick="showTab('bills')">My Bills</button>
+    </div>
+
+    <div id="ordersContainer" style="display: block;"></div>
+    <div id="billsContainer" style="display: none;"></div>
+
+    <script>
+        let currentClientId = '';
+
+        function showTab(tab) {
+            if (tab === 'orders') {
+                document.getElementById('ordersContainer').style.display = 'block';
+                document.getElementById('billsContainer').style.display = 'none';
+                document.getElementById('ordersTab').classList.add('active');
+                document.getElementById('billsTab').classList.remove('active');
+            } else {
+                document.getElementById('ordersContainer').style.display = 'none';
+                document.getElementById('billsContainer').style.display = 'block';
+                document.getElementById('ordersTab').classList.remove('active');
+                document.getElementById('billsTab').classList.add('active');
+            }
+        }
+
+        async function loadClientData() {
+            currentClientId = document.getElementById('clientId').value;
+            
+            if (!currentClientId.trim()) {
+                alert('Please enter your Client ID');
+                return;
+            }
+
+            await loadClientOrders();
+            await loadClientBills();
+        }
+
+        async function loadClientOrders() {
+            try {
+                const response = await fetch(`http://localhost:5050/client-requests/${currentClientId}`);
+                const requests = await response.json();
+                
+                // Filter to show only accepted requests (which have orders)
+                const acceptedRequests = requests.filter(req => req.Request_Status === 'accepted');
+                
+                displayOrders(acceptedRequests);
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                alert('Failed to load orders');
+            }
+        }
+
+        function displayOrders(requests) {
+            const container = document.getElementById('ordersContainer');
+            
+            if (requests.length === 0) {
+                container.innerHTML = '<p>No active orders found.</p>';
+                return;
+            }
+
+            container.innerHTML = '<h3>My Service Orders</h3>' + requests.map(req => `
+                <div class="card">
+                    <div class="card-header">
+                        Request #${req.RequestID} - Service Order Created
+                    </div>
+                    
+                    <div class="order-agreement">
+                        <strong>📋 Service Agreement</strong><br>
+                        <strong>Service Address:</strong> ${req.Service_Address}<br>
+                        <strong>Cleaning Type:</strong> ${req.Cleaning_Type}<br>
+                        <strong>Rooms:</strong> ${req.Rooms}<br>
+                        <strong>Scheduled Date:</strong> ${req.Pref_Date}<br>
+                        <strong>Scheduled Time:</strong> ${req.Pref_Time}<br>
+                        <strong>Agreed Price:</strong> $${req.Pref_Budget}<br>
+                        <strong>Request Submitted:</strong> ${new Date(req.Created_At).toLocaleString()}<br>
+                    </div>
+                    
+                    <div id="order-status-${req.RequestID}" style="margin-top: 10px;">
+                        Loading order status...
+                    </div>
+                </div>
+            `).join('');
+
+            // Load detailed order status for each
+            requests.forEach(req => {
+                loadOrderStatus(req.RequestID);
+            });
+        }
+
+        async function loadOrderStatus(requestId) {
+            try {
+                const response = await fetch(`http://localhost:5050/orders?status=all`);
+                const allOrders = await response.json();
+                
+                const order = allOrders.find(o => o.RequestID === requestId);
+                
+                if (order) {
+                    const statusDiv = document.getElementById(`order-status-${requestId}`);
+                    statusDiv.innerHTML = `
+                        <strong>Order Status:</strong> 
+                        <span class="status-badge status-${order.Order_Status}">
+                            ${order.Order_Status.toUpperCase().replace('_', ' ')}
+                        </span><br>
+                        ${order.Completion_Date ? `<strong>✅ Completed:</strong> ${new Date(order.Completion_Date).toLocaleString()}<br>` : ''}
+                        ${order.Order_Status === 'in_progress' ? '<em>Service is currently in progress...</em>' : ''}
+                        ${order.Order_Status === 'scheduled' ? '<em>Service is scheduled and will begin soon.</em>' : ''}
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading order status:', error);
+            }
+        }
+
+        async function loadClientBills() {
+            try {
+                const response = await fetch(`http://localhost:5050/client-bills/${currentClientId}`);
+                const bills = await response.json();
+                
+                displayBills(bills);
+            } catch (error) {
+                console.error('Error loading bills:', error);
+                alert('Failed to load bills');
+            }
+        }
+
+        function displayBills(bills) {
+            const container = document.getElementById('billsContainer');
+            
+            if (bills.length === 0) {
+                container.innerHTML = '<p>No bills found.</p>';
+                return;
+            }
+
+            container.innerHTML = '<h3>My Bills</h3>' + bills.map(bill => `
+                <div class="card">
+                    <div class="card-header">
+                        Bill #${bill.BillID} for Order #${bill.OrderID}
+                        <span class="status-badge status-${bill.Bill_Status}">${bill.Bill_Status.toUpperCase()}</span>
+                    </div>
+                    
+                    <div class="bill-section">
+                        <strong>📄 Invoice Details</strong><br>
+                        <strong>Service Date:</strong> ${bill.Scheduled_Date} at ${bill.Scheduled_Time}<br>
+                        <strong>Base Amount:</strong> $${bill.Amount}<br>
+                        <strong>Tax:</strong> $${bill.Tax}<br>
+                        <strong>Total Amount:</strong> <span style="font-size: 18px; color: #d9534f;">$${bill.Total_Amount}</span><br>
+                        ${bill.Bill_Note ? `<strong>Note:</strong> ${bill.Bill_Note}<br>` : ''}
+                        <strong>Bill Generated:</strong> ${new Date(bill.Created_At).toLocaleString()}<br>
+                        ${bill.Paid_At ? `<strong>✅ Paid On:</strong> ${new Date(bill.Paid_At).toLocaleString()}<br>` : ''}
+                        ${bill.Payment_Method ? `<strong>Payment Method:</strong> ${bill.Payment_Method}<br>` : ''}
+                    </div>
+                    
+                    <div id="dispute-history-${bill.BillID}"></div>
+                    <div id="revision-history-${bill.BillID}"></div>
+                    
+                    ${bill.Bill_Status === 'pending' || bill.Bill_Status === 'revised' ? `
+                        <button class="pay-btn" onclick="showPaymentForm(${bill.BillID}, ${bill.Total_Amount})">Pay Now</button>
+                        <button class="dispute-btn" onclick="showDisputeForm(${bill.BillID})">Dispute Bill</button>
+                        
+                        <div id="payment-form-${bill.BillID}" class="hidden" style="margin-top: 10px; background: #f0f0f0; padding: 10px; border-radius: 5px;">
+                            <h4>💳 Payment Details</h4>
+                            <label>Credit Card Number:</label>
+                            <input type="text" id="card-number-${bill.BillID}" maxlength="16" placeholder="1234567812345678" required><br>
+                            
+                            <label>Card Holder Name:</label>
+                            <input type="text" id="card-name-${bill.BillID}" placeholder="John Doe" required><br>
+                            
+                            <label>Expiry (MM/YY):</label>
+                            <input type="text" id="card-expiry-${bill.BillID}" maxlength="5" placeholder="12/25" required><br>
+                            
+                            <label>CVV:</label>
+                            <input type="text" id="card-cvv-${bill.BillID}" maxlength="3" placeholder="123" required><br>
+                            
+                            <strong>Amount to Pay: $${bill.Total_Amount}</strong><br>
+                            
+                            <button class="pay-btn" onclick="processCreditCardPayment(${bill.BillID}, ${bill.Total_Amount})">Confirm Payment</button>
+                            <button class="cancel-btn" onclick="hidePaymentForm(${bill.BillID})">Cancel</button>
+                        </div>
+                        
+                        <div id="dispute-form-${bill.BillID}" class="hidden" style="margin-top: 10px; background: #ffe5e5; padding: 10px; border-radius: 5px;">
+                            <h4>🚨 Dispute Bill</h4>
+                            <label>Reason for Dispute:</label><br>
+                            <textarea id="dispute-reason-${bill.BillID}" rows="4" style="width: 100%;" placeholder="Explain why you're disputing this bill..." required></textarea><br>
+                            
+                            <button class="dispute-btn" onclick="submitDispute(${bill.BillID})">Submit Dispute</button>
+                            <button class="cancel-btn" onclick="hideDisputeForm(${bill.BillID})">Cancel</button>
+                        </div>
+                    ` : ''}
+                    
+                    ${bill.Bill_Status === 'disputed' ? `
+                        <p style="color: #dc3545; font-weight: bold;">⚠️ Bill is currently under dispute</p>
+                    ` : ''}
+                    
+                    ${bill.Bill_Status === 'paid' ? `
+                        <p style="color: #28a745; font-weight: bold;">✅ Payment Received - Thank you!</p>
+                    ` : ''}
+                </div>
+            `).join('');
+
+            // Load dispute and revision history for each bill
+            bills.forEach(bill => {
+                loadDisputeHistory(bill.BillID);
+                loadRevisionHistory(bill.BillID);
+            });
+        }
+
+        async function loadDisputeHistory(billId) {
+            try {
+                const response = await fetch(`http://localhost:5050/bill-disputes/${billId}`);
+                const disputes = await response.json();
+                
+                if (disputes.length > 0) {
+                    const historyDiv = document.getElementById(`dispute-history-${billId}`);
+                    historyDiv.className = 'dispute-section';
+                    historyDiv.innerHTML = '<strong>🚨 Dispute History:</strong>' + 
+                        disputes.map(disp => `
+                            <div style="margin: 10px 0; padding: 5px; border-left: 3px solid #dc3545;">
+                                <strong>Status:</strong> ${disp.Dispute_Status.toUpperCase()}<br>
+                                <strong>Reason:</strong> ${disp.Dispute_Reason}<br>
+                                <strong>Filed:</strong> ${new Date(disp.Created_At).toLocaleString()}<br>
+                                ${disp.Resolved_At ? `<strong>Resolved:</strong> ${new Date(disp.Resolved_At).toLocaleString()}<br>` : ''}
+                            </div>
+                        `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading dispute history:', error);
+            }
+        }
+
+        async function loadRevisionHistory(billId) {
+            try {
+                const response = await fetch(`http://localhost:5050/bill-revisions/${billId}`);
+                const revisions = await response.json();
+                
+                if (revisions.length > 0) {
+                    const historyDiv = document.getElementById(`revision-history-${billId}`);
+                    historyDiv.className = 'revision-section';
+                    historyDiv.innerHTML = '<strong>📝 Bill Revision History:</strong>' + 
+                        revisions.map(rev => `
+                            <div style="margin: 10px 0; padding: 5px; border-left: 3px solid #007bff;">
+                                <strong>Type:</strong> ${rev.Revision_Type.toUpperCase()}<br>
+                                <strong>Previous Total:</strong> <strike>$${rev.Previous_Total}</strike> → <strong>New Total: $${rev.New_Total}</strong><br>
+                                <strong>Explanation:</strong> ${rev.Revision_Note}<br>
+                                <strong>Revised:</strong> ${new Date(rev.Created_At).toLocaleString()}<br>
+                            </div>
+                        `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading revision history:', error);
+            }
+        }
+
+        function showPaymentForm(billId, amount) {
+            document.getElementById(`payment-form-${billId}`).classList.remove('hidden');
+            document.getElementById(`dispute-form-${billId}`).classList.add('hidden');
+        }
+
+        function hidePaymentForm(billId) {
+            document.getElementById(`payment-form-${billId}`).classList.add('hidden');
+        }
+
+        function showDisputeForm(billId) {
+            document.getElementById(`dispute-form-${billId}`).classList.remove('hidden');
+            document.getElementById(`payment-form-${billId}`).classList.add('hidden');
+        }
+
+        function hideDisputeForm(billId) {
+            document.getElementById(`dispute-form-${billId}`).classList.add('hidden');
+        }
+
+        async function processCreditCardPayment(billId, amount) {
+            const cardNumber = document.getElementById(`card-number-${billId}`).value;
+            const cardName = document.getElementById(`card-name-${billId}`).value;
+            const cardExpiry = document.getElementById(`card-expiry-${billId}`).value;
+            const cardCvv = document.getElementById(`card-cvv-${billId}`).value;
+
+            if (!cardNumber || !cardName || !cardExpiry || !cardCvv) {
+                alert('Please fill in all payment details');
+                return;
+            }
+
+            if (cardNumber.length !== 16 || isNaN(cardNumber)) {
+                alert('Please enter a valid 16-digit card number');
+                return;
+            }
+
+            if (cardCvv.length !== 3 || isNaN(cardCvv)) {
+                alert('Please enter a valid 3-digit CVV');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5050/pay-bill-credit-card', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        billId,
+                        clientId: currentClientId,
+                        amount,
+                        cardLastFour: cardNumber.slice(-4),
+                        cardHolderName: cardName
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Payment successful! Thank you.');
+                    loadClientBills();
+                } else {
+                    alert('Payment failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error processing payment');
+            }
+        }
+
+        async function submitDispute(billId) {
+            const reason = document.getElementById(`dispute-reason-${billId}`).value;
+
+            if (!reason.trim()) {
+                alert('Please provide a reason for the dispute');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5050/dispute-bill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        billId,
+                        clientId: currentClientId,
+                        disputeReason: reason
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Dispute submitted successfully. Anna will review your concern.');
+                    loadClientBills();
+                } else {
+                    alert('Failed to submit dispute');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error submitting dispute');
+            }
+        }
+
+
+    </script>
+</body>
+</html>

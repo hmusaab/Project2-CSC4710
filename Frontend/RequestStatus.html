@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>My Service Requests - Client Portal</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        .request-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .request-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .request-details {
+            margin: 5px 0;
+        }
+        .quote-section {
+            background-color: #e7f3ff;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .rejected-section {
+            background-color: #ffe5e5;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+        .action-section {
+            margin-top: 15px;
+            padding: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+        .accept-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .negotiate-btn {
+            background-color: #ffc107;
+            color: black;
+            border: none;
+        }
+        .cancel-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+        }
+        .negotiation-history {
+            background-color: #fff3cd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        .negotiation-item {
+            padding: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #ffc107;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-pending { background-color: #ffc107; }
+        .status-quoted { background-color: #17a2b8; color: white; }
+        .status-negotiating { background-color: #fd7e14; color: white; }
+        .status-accepted { background-color: #28a745; color: white; }
+        .status-rejected { background-color: #dc3545; color: white; }
+    </style>
+</head>
+<body style="font-family: Arial;">
+    <div style="background-color: #f0f0f0; padding: 10px; margin-bottom: 20px;">
+        <a href="ServiceRequestSub.html">Submit Request</a> |
+        <a href="RequestStatus.html">Request Status</a> |
+        <a href="ClientOrdersBills.html">My Orders & Bills</a>
+    </div>
+
+    <h2>My Service Requests</h2>
+    
+    <div>
+        <label>Client ID:</label>
+        <input type="text" id="clientId" placeholder="Enter your Client ID">
+        <button onclick="loadClientRequests()">Load My Requests</button>
+    </div>
+
+    <div id="requestsContainer"></div>
+
+    <script>
+        async function loadClientRequests() {
+            const clientId = document.getElementById('clientId').value;
+            
+            if (!clientId.trim()) {
+                alert('Please enter your Client ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:5050/client-requests/${clientId}`);
+                const requests = await response.json();
+                displayRequests(requests);
+            } catch (error) {
+                console.error('Error loading requests:', error);
+                alert('Failed to load requests');
+            }
+        }
+
+        function displayRequests(requests) {
+            const container = document.getElementById('requestsContainer');
+            
+            if (requests.length === 0) {
+                container.innerHTML = '<p>No service requests found.</p>';
+                return;
+            }
+
+            container.innerHTML = requests.map(req => `
+                <div class="request-card">
+                    <div class="request-header">
+                        Request #${req.RequestID}
+                        <span class="status-badge status-${req.Request_Status}">${req.Request_Status.toUpperCase()}</span>
+                    </div>
+                    <div class="request-details">
+                        <strong>Address:</strong> ${req.Service_Address}<br>
+                        <strong>Cleaning Type:</strong> ${req.Cleaning_Type}<br>
+                        <strong>Rooms:</strong> ${req.Rooms}<br>
+                        <strong>Your Preferred Date:</strong> ${req.Pref_Date}<br>
+                        <strong>Your Preferred Time:</strong> ${req.Pref_Time}<br>
+                        <strong>Your Budget:</strong> $${req.Pref_Budget}<br>
+                        ${req.Optional_Note ? `<strong>Your Note:</strong> ${req.Optional_Note}<br>` : ''}
+                        <strong>Submitted:</strong> ${new Date(req.Created_At).toLocaleString()}<br>
+                    </div>
+                    
+                    ${req.Request_Status === 'rejected' ? `
+                        <div class="rejected-section">
+                            <strong>❌ Request Rejected</strong><br>
+                            ${req.rejection_note ? `Reason: ${req.rejection_note}` : ''}
+                        </div>
+                    ` : ''}
+                    
+                    ${(req.Request_Status === 'quoted' || req.Request_Status === 'negotiating') ? `
+                        <div class="quote-section" id="quote-${req.RequestID}">
+                            <strong>📋 Quote from Anna:</strong><br>
+                        </div>
+                        <div id="negotiation-history-${req.RequestID}"></div>
+                    ` : ''}
+                    
+                    ${req.Request_Status === 'pending' ? `
+                        <p><em>Waiting for Anna to respond...</em></p>
+                    ` : ''}
+                    
+                    ${req.Request_Status === 'accepted' ? `
+                        <div class="quote-section">
+                            <strong>✅ Service Order Created!</strong><br>
+                            Your service has been scheduled.
+                        </div>
+                    ` : ''}
+                    
+                    <div id="actions-${req.RequestID}"></div>
+                </div>
+            `).join('');
+
+            // Load quotes and negotiation history
+            requests.forEach(req => {
+                if (req.Request_Status === 'quoted' || req.Request_Status === 'negotiating') {
+                    loadQuoteDetails(req.RequestID);
+                    loadNegotiationHistory(req.RequestID);
+                }
+            });
+        }
+
+        async function loadQuoteDetails(requestId) {
+            try {
+                const response = await fetch(`http://localhost:5050/quote/${requestId}`);
+                const quote = await response.json();
+                
+                if (quote) {
+                    const quoteDiv = document.getElementById(`quote-${requestId}`);
+                    quoteDiv.innerHTML = `
+                        <strong>📋 Quote from Anna:</strong><br>
+                        <strong>Quoted Price:</strong> $${quote.Quoted_Price}<br>
+                        <strong>Scheduled Date:</strong> ${quote.Scheduled_Date}<br>
+                        <strong>Scheduled Time:</strong> ${quote.Scheduled_Time}<br>
+                        ${quote.Quote_Note ? `<strong>Note:</strong> ${quote.Quote_Note}<br>` : ''}
+                        <strong>Quote Status:</strong> ${quote.Quote_Status}<br>
+                    `;
+
+                    // Add action buttons
+                    const actionsDiv = document.getElementById(`actions-${requestId}`);
+                    if (quote.Quote_Status === 'pending' || quote.Quote_Status === 'countered') {
+                        actionsDiv.innerHTML = `
+                            <div class="action-section">
+                                <button class="accept-btn" onclick="acceptQuote(${requestId}, ${quote.QuoteID})">Accept Quote</button>
+                                <button class="negotiate-btn" onclick="showNegotiateForm(${requestId}, ${quote.QuoteID})">Negotiate</button>
+                                
+                                <div id="negotiate-form-${requestId}" class="hidden" style="margin-top: 10px;">
+                                    <h4>Submit Counter Offer</h4>
+                                    <label>Your Message:</label><br>
+                                    <textarea id="counter-message-${requestId}" rows="3" style="width: 100%;" placeholder="e.g., 'too expensive' or 'need another time slot'"></textarea><br>
+                                    
+                                    <label>Counter Price (optional):</label>
+                                    <input type="number" id="counter-price-${requestId}" step="0.01"><br>
+                                    
+                                    <label>Alternative Date (optional):</label>
+                                    <input type="date" id="counter-date-${requestId}"><br>
+                                    
+                                    <label>Alternative Time (optional):</label>
+                                    <input type="time" id="counter-time-${requestId}"><br>
+                                    
+                                    <button class="negotiate-btn" onclick="submitCounterOffer(${requestId}, ${quote.QuoteID})">Submit Counter Offer</button>
+                                    <button class="cancel-btn" onclick="cancelNegotiate(${requestId})">Cancel</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading quote:', error);
+            }
+        }
+
+        async function loadNegotiationHistory(requestId) {
+            try {
+                const response = await fetch(`http://localhost:5050/negotiations/${requestId}`);
+                const negotiations = await response.json();
+                
+                if (negotiations.length > 0) {
+                    const historyDiv = document.getElementById(`negotiation-history-${requestId}`);
+                    historyDiv.className = 'negotiation-history';
+                    historyDiv.innerHTML = '<strong>💬 Negotiation History:</strong>' + 
+                        negotiations.map(neg => `
+                            <div class="negotiation-item">
+                                <strong>${neg.Sender_Type === 'client' ? 'You' : 'Anna'}:</strong> ${neg.Message}<br>
+                                ${neg.Counter_Price ? `Proposed Price: $${neg.Counter_Price}<br>` : ''}
+                                ${neg.Counter_Date ? `Proposed Date: ${neg.Counter_Date}<br>` : ''}
+                                ${neg.Counter_Time ? `Proposed Time: ${neg.Counter_Time}<br>` : ''}
+                                <small>${new Date(neg.Created_At).toLocaleString()}</small>
+                            </div>
+                        `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading negotiation history:', error);
+            }
+        }
+
+        function showNegotiateForm(requestId, quoteId) {
+            document.getElementById(`negotiate-form-${requestId}`).classList.remove('hidden');
+        }
+
+        function cancelNegotiate(requestId) {
+            document.getElementById(`negotiate-form-${requestId}`).classList.add('hidden');
+        }
+
+        async function acceptQuote(requestId, quoteId) {
+            if (!confirm('Are you sure you want to accept this quote? A service order will be created.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5050/accept-quote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestId, quoteId })
+                });
+
+                if (response.ok) {
+                    alert('Quote accepted! Service order has been created.');
+                    loadClientRequests();
+                } else {
+                    alert('Failed to accept quote');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error accepting quote');
+            }
+        }
+
+        async function submitCounterOffer(requestId, quoteId) {
+            const message = document.getElementById(`counter-message-${requestId}`).value;
+            const price = document.getElementById(`counter-price-${requestId}`).value;
+            const date = document.getElementById(`counter-date-${requestId}`).value;
+            const time = document.getElementById(`counter-time-${requestId}`).value;
+
+            if (!message.trim()) {
+                alert('Please provide a message for your counter offer');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5050/counter-offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        requestId,
+                        quoteId,
+                        message,
+                        counterPrice: price || null,
+                        counterDate: date || null,
+                        counterTime: time || null
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Counter offer submitted successfully');
+                    loadClientRequests();
+                } else {
+                    alert('Failed to submit counter offer');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error submitting counter offer');
+            }
+        }
+    </script>
+</body>
+</html>

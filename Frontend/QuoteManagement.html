@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Quote Management - Anna's Portal</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        .request-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .request-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .request-details {
+            margin: 5px 0;
+        }
+        .action-section {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+        }
+        .reject-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+        }
+        .quote-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .cancel-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+        }
+        .negotiation-history {
+            background-color: #fff3cd;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 5px;
+        }
+        .negotiation-item {
+            padding: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #ffc107;
+        }
+        nav {
+            background-color: #343a40;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            padding: 5px 10px;
+        }
+        nav a:hover {
+            background-color: #495057;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body style="font-family: Arial;">
+    <nav>
+        <a href="QuoteManagement.html">Quote Management</a>
+        <a href="OrderManagement.html">Order Management</a>
+        <a href="BillDisputeManagement.html">Bill Disputes</a>
+    </nav>
+
+    <h2>Service Requests - Quote Management</h2>
+    
+    <div>
+        <button onclick="loadRequests('pending')">Pending Requests</button>
+        <button onclick="loadRequests('negotiating')">Ongoing Negotiations</button>
+        <button onclick="loadRequests('all')">All Requests</button>
+    </div>
+
+    <div id="requestsContainer"></div>
+
+    <script>
+        async function loadRequests(status = 'pending') {
+            try {
+                const response = await fetch(`http://localhost:5050/requests?status=${status}`);
+                const requests = await response.json();
+                displayRequests(requests);
+            } catch (error) {
+                console.error('Error loading requests:', error);
+                alert('Failed to load requests');
+            }
+        }
+
+        function displayRequests(requests) {
+            const container = document.getElementById('requestsContainer');
+            if (requests.length === 0) {
+                container.innerHTML = '<p>No requests found.</p>';
+                return;
+            }
+
+            container.innerHTML = requests.map(req => `
+                <div class="request-card">
+                    <div class="request-header">Request #${req.RequestID} - ${req.Request_Status.toUpperCase()}</div>
+                    <div class="request-details">
+                        <strong>Client:</strong> ${req.ClientID}<br>
+                        <strong>Address:</strong> ${req.Service_Address}<br>
+                        <strong>Cleaning Type:</strong> ${req.Cleaning_Type}<br>
+                        <strong>Rooms:</strong> ${req.Rooms}<br>
+                        <strong>Preferred Date:</strong> ${req.Pref_Date}<br>
+                        <strong>Preferred Time:</strong> ${req.Pref_Time}<br>
+                        <strong>Preferred Budget:</strong> $${req.Pref_Budget}<br>
+                        ${req.Optional_Note ? `<strong>Note:</strong> ${req.Optional_Note}<br>` : ''}
+                    </div>
+                    
+                    <div id="negotiation-history-${req.RequestID}"></div>
+                    
+                    <div class="action-section">
+                        <button class="reject-btn" onclick="showRejectForm(${req.RequestID})">Reject Request</button>
+                        <button class="quote-btn" onclick="showQuoteForm(${req.RequestID})">Provide Quote</button>
+                        
+                        <div id="reject-form-${req.RequestID}" class="hidden" style="margin-top: 10px;">
+                            <h4>Reject Request</h4>
+                            <label>Reason for Rejection:</label><br>
+                            <textarea id="reject-note-${req.RequestID}" rows="3" style="width: 100%;" required></textarea><br>
+                            <button class="reject-btn" onclick="rejectRequest(${req.RequestID})">Confirm Rejection</button>
+                            <button class="cancel-btn" onclick="cancelAction(${req.RequestID}, 'reject')">Cancel</button>
+                        </div>
+                        
+                        <div id="quote-form-${req.RequestID}" class="hidden" style="margin-top: 10px;">
+                            <h4>Provide Quote</h4>
+                            <label>Adjusted Price:</label>
+                            <input type="number" id="quote-price-${req.RequestID}" step="0.01" required><br>
+                            
+                            <label>Scheduled Date:</label>
+                            <input type="date" id="quote-date-${req.RequestID}" required><br>
+                            
+                            <label>Scheduled Time:</label>
+                            <input type="time" id="quote-time-${req.RequestID}" required><br>
+                            
+                            <label>Optional Note:</label><br>
+                            <textarea id="quote-note-${req.RequestID}" rows="3" style="width: 100%;"></textarea><br>
+                            
+                            <button class="quote-btn" onclick="submitQuote(${req.RequestID})">Submit Quote</button>
+                            <button class="cancel-btn" onclick="cancelAction(${req.RequestID}, 'quote')">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Load negotiation history for each request
+            requests.forEach(req => {
+                if (req.Request_Status === 'negotiating' || req.Request_Status === 'quoted') {
+                    loadNegotiationHistory(req.RequestID);
+                }
+            });
+        }
+
+        async function loadNegotiationHistory(requestId) {
+            try {
+                const response = await fetch(`http://localhost:5050/negotiations/${requestId}`);
+                const negotiations = await response.json();
+                
+                if (negotiations.length > 0) {
+                    const historyDiv = document.getElementById(`negotiation-history-${requestId}`);
+                    historyDiv.className = 'negotiation-history';
+                    historyDiv.innerHTML = '<strong>Negotiation History:</strong>' + 
+                        negotiations.map(neg => `
+                            <div class="negotiation-item">
+                                <strong>${neg.Sender_Type === 'client' ? 'Client' : 'You'}:</strong> ${neg.Message}<br>
+                                ${neg.Counter_Price ? `Proposed Price: $${neg.Counter_Price}<br>` : ''}
+                                ${neg.Counter_Date ? `Proposed Date: ${neg.Counter_Date}<br>` : ''}
+                                ${neg.Counter_Time ? `Proposed Time: ${neg.Counter_Time}<br>` : ''}
+                                <small>${new Date(neg.Created_At).toLocaleString()}</small>
+                            </div>
+                        `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading negotiation history:', error);
+            }
+        }
+
+        function showRejectForm(requestId) {
+            document.getElementById(`reject-form-${requestId}`).classList.remove('hidden');
+            document.getElementById(`quote-form-${requestId}`).classList.add('hidden');
+        }
+
+        function showQuoteForm(requestId) {
+            document.getElementById(`quote-form-${requestId}`).classList.remove('hidden');
+            document.getElementById(`reject-form-${requestId}`).classList.add('hidden');
+        }
+
+        function cancelAction(requestId, type) {
+            document.getElementById(`${type}-form-${requestId}`).classList.add('hidden');
+        }
+
+        async function rejectRequest(requestId) {
+            const note = document.getElementById(`reject-note-${requestId}`).value;
+            
+            if (!note.trim()) {
+                alert('Please provide a reason for rejection');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5050/reject-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestId, note })
+                });
+
+                if (response.ok) {
+                    alert('Request rejected successfully');
+                    loadRequests('pending');
+                } else {
+                    alert('Failed to reject request');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error rejecting request');
+            }
+        }
+
+        async function submitQuote(requestId) {
+            const price = document.getElementById(`quote-price-${requestId}`).value;
+            const date = document.getElementById(`quote-date-${requestId}`).value;
+            const time = document.getElementById(`quote-time-${requestId}`).value;
+            const note = document.getElementById(`quote-note-${requestId}`).value;
+
+            if (!price || !date || !time) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5050/submit-quote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        requestId,
+                        quotedPrice: price,
+                        scheduledDate: date,
+                        scheduledTime: time,
+                        note: note
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Quote submitted successfully');
+                    loadRequests('pending');
+                } else {
+                    alert('Failed to submit quote');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error submitting quote');
+            }
+        }
+
+        // Load pending requests on page load
+        window.onload = () => loadRequests('pending');
+    </script>
+</body>
+</html>
