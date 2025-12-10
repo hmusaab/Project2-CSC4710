@@ -1,0 +1,16 @@
+
+div label,input{ /*css selector not id or class but all label and input elements that are nested in div*/
+    position: relative;
+    display: block; /* allows the the next nested element to appear in the next line rather than the same line*/
+    margin: 5px; /* margin (short hand property) is the space around all the other elements*/                            
+}
+
+div button{
+    position: relative;
+    margin: 5px;
+    top: 7px;
+}
+
+
+
+

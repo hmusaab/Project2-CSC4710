@@ -1,0 +1,51 @@
+<!DOCTYPE html> <!-- For out interface we will use HTML and not react, react file is not used in profs project1 directory on github, yt video listed also used html and not react-->
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Main Page - Client Registration</title>
+        <link rel="stylesheet" href="index.css"> <!--adding css via external css stylesheet-->
+    </head>
+    <body style="font-family: Arial;">
+        <h2>Register Your Account</h2>
+        <div> <!--The attribute action tells the webpage where the user input data should be sent, attribute method says how said data should be sent-->
+            <!--Our js file will go to this route-->
+        <a href="SignIn.html">Already Exsisting Account?</a>
+        <form action="http://localhost:5050/insert" method="POST">
+<!-- localhoast lit refers to 'this machine' as it's ran locally-->
+            
+            <label>Service Address:</label> <!--Note that we use the value of the name attribute to send the user input data on the form to our database, IOW, name attribute needed to send data to database, NOT the id attribute (this is used for css or js), only works for form type elements nested in the <form> element/tag for http request to prorperly package and  -->
+            <input type="text" name="Service_Address" required>
+
+            <label>Cleaning Type:</label>
+            <input type="text" name="Cleaning_Type" required>
+
+            <label>Number of Rooms:</label>
+            <input type="number" name="Rooms" required>
+ 
+            <label>Preference Date:</label>
+            <input type="number" name="Pref_Date" required>
+            
+            <label>Preference Time:</label>
+            <input type="number" name="Pref_Time" required>
+
+            <label>Prefered Budget:</label>
+            <input type="number" name="Pref_Budget" required>
+
+            <label>Optional Note:</label>
+            <input type="number" name="Optional_Note" required>
+
+            <input type="hidden" name="LastSignInTime">
+            
+            <button>Finish</button> <!-- Button doesnt need any attributes but must be included/nested -->
+        </form>
+        </div>
+        <script src="Functionality.js"></script>
+    </body>
+</html>
+
+<!-- When you want the Frontend to send user inputted data to the backend, do the following -->
+ <!-- 1) Must use the <form> element and the use the allowed form elements to capture user input like <input>, <button>, etc-->
+<!-- 2) The <form> element must have the action attribute along with the http method attribute (POST, GET, DELETE, etc) use whichever one depending on your goal-->
+<!-- 3) Now you can nest/use the allowed form elements that can send user data to the backend inside of the <form> element like (<input>, <button>, etc) wit the name attribute-->
+<!-- 4) Button doesnt need any attributes but must be included/nested inorder for the browser to automatically send data to Backend. However, the page will reload -->
+ <!-- 5) If you do not want the page to reload but still send data from Frontend to Backend then you will use addeventlistner and this button will have attributes, button should still be nested inside of <form> and you still need the necessary attributes in the <form>-->
