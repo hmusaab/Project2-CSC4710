@@ -1,0 +1,26 @@
+<!DOCTYPE html> <!-- For out interface we will use HTML and not react, react file is not used in profs project1 directory on github, yt video listed also used html and not react-->
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>SignIn</title>
+        <link rel="stylesheet" href="index.css"> <!--adding css via external css stylesheet-->
+    </head>
+    <body style="font-family: Arial;">
+        <h2>Please Sign-In Below:</h2>
+        <div> <!--The attribute action tells the webpage where the user input data should be sent, attribute method says how said data should be sent-->
+            <!--Our js file will go to this route-->
+        <form action="http://localhost:5050/verify" method="POST"> <!--Though the corresponding js app function is app.'get()', using "GET" is not good as it exposes userID and password thus injection attack-->
+            
+            <input type="hidden" name="LastSignInTime" id="date2">
+            <script>
+            </script>
+            
+            
+            <label>ClientID:</label> <!--Note that we use the value of the name attribute to send the user input data on the form to our database, IOW, name attribute needed to send data to database, NOT the id attribute (this is used for css or js)-->
+            <input type="text" name="UserID" required>            
+            <button>Finish</button>
+        </form>
+
+        </div>
+    </body>
+</html>

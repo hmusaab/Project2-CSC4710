@@ -6,11 +6,12 @@ CREATE TABLE Client(
   Email VARCHAR(30),
   CreditCardNumber VARCHAR(50),
   CreditCardCode VARCHAR(50),
-  ClientID VARCHAR(6),
+  ClientID VARCHAR(30),
 PRIMARY KEY(ClientID) -- PRIMARY KEY is a key word not a category/column name. It dsitinguishes every column/category from the others in the table --
 );
 
 CREATE TABLE ServiceRequest(
+  RequestID INT UNSIGNED AUTO_INCREMENT,
   Service_Address VARCHAR(50), -- name of category/column (no spaces, use underscore if needed) followed by datatype. Name for column/category can also have symbols and numbers but cannot start with such characters --
   Cleaning_Type VARCHAR(50),
   Rooms VARCHAR(30),
@@ -18,7 +19,7 @@ CREATE TABLE ServiceRequest(
   Pref_Time VARCHAR(30),
   Pref_Budget VARCHAR(50),
   Optional_Note VARCHAR(50),
-PRIMARY KEY(Pref_Time) -- PRIMARY KEY is a key word not a category/column name. It dsitinguishes every column/category from the others in the table --
+PRIMARY KEY(RequestID) -- PRIMARY KEY is a key word not a category/column name. It dsitinguishes every column/category from the others in the table --
 );
 
 

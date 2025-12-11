@@ -7,11 +7,19 @@
     </head>
     <body style="font-family: Arial;">
         <h2>Submit a Service Request</h2>
+        <h3>Success! Welcome back client: </h3>
+        <p id="UserDisplay"></p>
+        <script>
+            const Params = new URLSearchParams(window.location.search);
+            const ClientID = Params.get('User');
+            document.getElementById("UserDisplay").textContent = ClientID;
+        </script>
         <div>
             <a href="SignIn.html">Back to Sign In</a> | 
             <a href="RequestStatus.html">View My Requests</a> |
             <a href="ClientOrdersBills.html">My Orders & Bills</a>
             
+            <!--<form action="http://localhost:5050/plugin" method="POST"> -->
             <form id="serviceRequestForm">
                 <label>Client ID:</label>
                 <input type="text" name="ClientID" id="ClientID" required>
@@ -47,6 +55,7 @@
         </div>
         
         <script>
+            
             document.getElementById('serviceRequestForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
                 

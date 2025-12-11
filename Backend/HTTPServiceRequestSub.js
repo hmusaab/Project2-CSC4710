@@ -243,7 +243,7 @@ app.get('/negotiations/:requestId', (request, response) => {
     });
 });
 
-// ============ GET ORDERS (by status) ============
+// GET ORDERS (by status) 
 // GET endpoint to retrieve service orders filtered by status
 // Query parameter: status (scheduled, in_progress, completed, cancelled, or 'all')
 app.get('/orders', (request, response) => {
@@ -275,7 +275,7 @@ app.get('/orders', (request, response) => {
     });
 });
 
-// ============ START ORDER ============
+//  START ORDER 
 // POST endpoint for Anna to start a scheduled service order
 // Request body: {orderId}
 app.post('/start-order', (request, response) => {
@@ -295,7 +295,7 @@ app.post('/start-order', (request, response) => {
     });
 });
 
-// ============ COMPLETE ORDER ============
+// COMPLETE ORDER
 // POST endpoint for Anna to mark a service order as completed
 // Request body: {orderId}
 app.post('/complete-order', (request, response) => {
@@ -315,7 +315,7 @@ app.post('/complete-order', (request, response) => {
     });
 });
 
-// ============ CANCEL ORDER ============
+//  CANCEL ORDER 
 // POST endpoint for Anna to cancel a service order
 // Request body: {orderId, reason}
 app.post('/cancel-order', (request, response) => {
@@ -335,7 +335,7 @@ app.post('/cancel-order', (request, response) => {
     });
 });
 
-// ============ GENERATE BILL ============
+// GENERATE BILL 
 // POST endpoint for Anna to generate a bill after service completion
 // Request body: {orderId, clientId, amount, tax, totalAmount, note}
 app.post('/generate-bill', (request, response) => {

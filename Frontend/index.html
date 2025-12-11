@@ -6,11 +6,12 @@
         <link rel="stylesheet" href="index.css"> <!--adding css via external css stylesheet-->
     </head>
     <body style="font-family: Arial;">
-        <h2>Register Your Account</h2>
-        <div> <!--The attribute action tells the webpage where the user input data should be sent, attribute method says how said data should be sent-->
+        <h3>Want To Be A Client? Register Below!</h3>
+        <div> 
             <!--Our js file will go to this route-->
-        <a href="SignIn.html">Already Exsisting Account?</a>
-        <form action="http://localhost:5050/insert" method="POST">
+        <a href="ClientSignIn.html">Already A Registered Client?</a>
+        <a href="ContractorSignIn.html" style="display:block">Are You Anna The Contractor?</a>
+        <form action="http://localhost:5050/insert" method="POST"><!--The attribute action tells the html webpage where the user input data from the form should be sent to (via URL), attribute method says how said data should be sent-->
 <!-- localhoast lit refers to 'this machine' as it's ran locally-->
             
             <p>Your Regstration Date:</p> <p id="date"></p>
@@ -47,12 +48,37 @@
             <input type="number" name="CreditCardCode" required>
 
             <input type="hidden" name="LastSignInTime">
+
+
+            <input type="hidden" name="ClientID">
             
             <button>Finish</button> <!-- Button doesnt need any attributes but must be included/nested -->
         </form>
         </div>
     </body>
 </html>
+
+<script>
+    //this frontend javascript will be used to create a unique ID for the client. Once, client presses
+    var Random = "ID" + Math.random(16).toString(2);
+
+    window.addEventListener("DOMContentLoaded", () =>{
+    document.getElementById("ClientID").name = Random;
+    });
+</script>
+
+<script>
+    //this frontend javascript is used to fetch and execute the details from the response.json
+    fetch("/register", {
+        method: "POST",
+        body: new FormData(form)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message); //this will tell the client their ClientID
+        window.location.href = data.redirect; //redirect the user to SignIn.html
+    });
+</script>
 
 <!-- When you want the Frontend to send user inputted data to the backend, do the following -->
  <!-- 1) Must use the <form> element and the use the allowed form elements to capture user input like <input>, <button>, etc-->
