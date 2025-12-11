@@ -25,7 +25,7 @@ connection.connect((err) => {
     console.log('Service Request DB connection: ' + connection.state);
 });
 
-// ============ SERVICE REQUEST SUBMISSION ============
+// servive request submission
 app.post('/submit-service-request', (request, response) => {
     const {ClientID, Service_Address, Cleaning_Type, Rooms, Pref_Date, Pref_Time, Pref_Budget, Optional_Note} = request.body;
     
@@ -43,7 +43,7 @@ app.post('/submit-service-request', (request, response) => {
     });
 });
 
-// ============ GET REQUESTS FOR ANNA (by status) ============
+// get request from Anna
 app.get('/requests', (request, response) => {
     const status = request.query.status;
     
@@ -67,7 +67,7 @@ app.get('/requests', (request, response) => {
     });
 });
 
-// ============ GET CLIENT'S REQUESTS ============
+// get clients list
 app.get('/client-requests/:clientId', (request, response) => {
     const clientId = request.params.clientId;
     
@@ -87,7 +87,7 @@ app.get('/client-requests/:clientId', (request, response) => {
     });
 });
 
-// ============ REJECT REQUEST ============
+// reject qoute 
 app.post('/reject-request', (request, response) => {
     const {requestId, note} = request.body;
     
@@ -111,7 +111,7 @@ app.post('/reject-request', (request, response) => {
     });
 });
 
-// ============ SUBMIT QUOTE ============
+// submit qoute
 app.post('/submit-quote', (request, response) => {
     const {requestId, quotedPrice, scheduledDate, scheduledTime, note} = request.body;
     
@@ -143,7 +143,7 @@ app.post('/submit-quote', (request, response) => {
     });
 });
 
-// ============ GET QUOTE FOR REQUEST ============
+// retrieve qoute request
 app.get('/quote/:requestId', (request, response) => {
     const requestId = request.params.requestId;
     
@@ -159,7 +159,7 @@ app.get('/quote/:requestId', (request, response) => {
     });
 });
 
-// ============ ACCEPT QUOTE (Create Service Order) ============
+// Accept the qoute
 app.post('/accept-quote', (request, response) => {
     const {requestId, quoteId} = request.body;
     
@@ -201,7 +201,7 @@ app.post('/accept-quote', (request, response) => {
     });
 });
 
-// ============ SUBMIT COUNTER OFFER (Client) ============
+// counter offer for Anna
 app.post('/counter-offer', (request, response) => {
     const {requestId, quoteId, message, counterPrice, counterDate, counterTime} = request.body;
     
@@ -227,7 +227,7 @@ app.post('/counter-offer', (request, response) => {
     });
 });
 
-// ============ GET NEGOTIATION HISTORY ============
+
 app.get('/negotiations/:requestId', (request, response) => {
     const requestId = request.params.requestId;
     
@@ -335,9 +335,7 @@ app.post('/cancel-order', (request, response) => {
     });
 });
 
-// GENERATE BILL 
-// POST endpoint for Anna to generate a bill after service completion
-// Request body: {orderId, clientId, amount, tax, totalAmount, note}
+
 app.post('/generate-bill', (request, response) => {
     const {orderId, clientId, amount, tax, totalAmount, note} = request.body; // Extract bill details
     
@@ -372,8 +370,7 @@ app.post('/generate-bill', (request, response) => {
     });
 });
 
-// ============ GET BILL FOR ORDER ============
-// GET endpoint to retrieve bill information for a specific order
+
 app.get('/bill/:orderId', (request, response) => {
     const orderId = request.params.orderId; // Get order ID from URL parameter
     
@@ -390,8 +387,7 @@ app.get('/bill/:orderId', (request, response) => {
     });
 });
 
-// ============ GET CLIENT BILLS ============
-// GET endpoint to retrieve all bills for a specific client
+
 app.get('/client-bills/:clientId', (request, response) => {
     const clientId = request.params.clientId; // Get client ID from URL parameter
     
@@ -412,9 +408,7 @@ app.get('/client-bills/:clientId', (request, response) => {
     });
 });
 
-// ============ PAY BILL WITH CREDIT CARD ============
-// POST endpoint for paying a bill with credit card
-// Request body: {billId, clientId, amount, cardLastFour, cardHolderName}
+
 app.post('/pay-bill-credit-card', (request, response) => {
     const {billId, clientId, amount, cardLastFour, cardHolderName} = request.body; // Extract payment details
     
@@ -443,9 +437,7 @@ app.post('/pay-bill-credit-card', (request, response) => {
     });
 });
 
-// ============ DISPUTE BILL ============
-// POST endpoint for client to dispute a bill
-// Request body: {billId, clientId, disputeReason}
+
 app.post('/dispute-bill', (request, response) => {
     const {billId, clientId, disputeReason} = request.body; // Extract dispute details
     
@@ -484,8 +476,7 @@ app.post('/dispute-bill', (request, response) => {
     });
 });
 
-// ============ GET ALL DISPUTES (for Anna) ============
-// GET endpoint to retrieve bill disputes filtered by status
+
 app.get('/all-disputes', (request, response) => {
     const status = request.query.status; // Get status filter from query parameter
     
@@ -513,8 +504,7 @@ app.get('/all-disputes', (request, response) => {
     });
 });
 
-// ============ GET DISPUTES FOR SPECIFIC BILL ============
-// GET endpoint to retrieve dispute history for a specific bill
+
 app.get('/bill-disputes/:billId', (request, response) => {
     const billId = request.params.billId; // Get bill ID from URL parameter
     
@@ -530,9 +520,7 @@ app.get('/bill-disputes/:billId', (request, response) => {
     });
 });
 
-// ============ REVISE BILL ============
-// POST endpoint for Anna to revise a disputed bill
-// Request body: {billId, disputeId, previousAmount, newAmount, previousTax, newTax, previousTotal, newTotal, revisionType, revisionNote}
+
 app.post('/revise-bill', (request, response) => {
     const {billId, disputeId, previousAmount, newAmount, previousTax, newTax, previousTotal, newTotal, revisionType, revisionNote} = request.body;
     
@@ -563,8 +551,7 @@ app.post('/revise-bill', (request, response) => {
     });
 });
 
-// ============ GET BILL REVISIONS ============
-// GET endpoint to retrieve revision history for a specific bill
+
 app.get('/bill-revisions/:billId', (request, response) => {
     const billId = request.params.billId; // Get bill ID from URL parameter
     
@@ -580,9 +567,7 @@ app.get('/bill-revisions/:billId', (request, response) => {
     });
 });
 
-// ============ RESOLVE DISPUTE ============
-// POST endpoint for Anna to mark a dispute as resolved
-// Request body: {disputeId}
+
 app.post('/resolve-dispute', (request, response) => {
     const {disputeId} = request.body; // Extract dispute ID
     
@@ -600,9 +585,7 @@ app.post('/resolve-dispute', (request, response) => {
     });
 });
 
-// ============ ESCALATE DISPUTE ============
-// POST endpoint for Anna to escalate a dispute
-// Request body: {disputeId, reason}
+
 app.post('/escalate-dispute', (request, response) => {
     const {disputeId, reason} = request.body; // Extract dispute ID and reason
     
